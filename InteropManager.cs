@@ -7,6 +7,7 @@ using System.Text;
 
 namespace InteropMgr
 {
+#if false
 #nullable enable
     /// <summary>
     /// TODO: REFACTORING IN PROGRESS
@@ -169,4 +170,5 @@ namespace InteropMgr
             get { return _perm; }
         }
     }
+#endif
 }

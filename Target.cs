@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace InteropMgr
@@ -47,6 +48,23 @@ namespace InteropMgr
             };
             return target;
         }
+
+        public static Target CreateFromWindowName(string windowName)
+        {
+            Process[] processes = Process.GetProcesses();
+
+            for (int i = 0; i < processes.Length; i++)
+            {
+                if (processes[i].MainWindowTitle == windowName)
+                {
+                    return new Target()
+                    {
+                        _process = processes[i]
+                    };
+                }
+            }
+            throw new ProcessEnumerationException("Could not find window name \'" + windowName + "\'");
+        }
         #endregion
         #region public methods
         public bool HasProcessPermission(Permissions.ProcessPermission permission)
@@ -67,6 +85,33 @@ namespace InteropMgr
             {
                 throw new UnauthorizedAccessException("Could not attach to process with PID " + _process.Id.ToString() + ". Handle was NULL.");
             }
+        }
+
+        public Task SendKeyPressAsync(ConsoleKey key, int millisecondsHoldtime) => Task.Run(() => SendKeyPress(key, millisecondsHoldtime));
+
+        public void SendKeyPress(ConsoleKey key, int millisecondsHoldtime)
+        {
+            SendKeyDown(key);
+            Thread.Sleep(millisecondsHoldtime);
+            SendKeyUp(key);
+        }
+
+        public void SendKeyDown(ConsoleKey key)
+        {
+            if (WinAPI.GetForegroundWindow() != _process.MainWindowHandle)
+            {
+                InputManager.SwitchWindow(_process.MainWindowHandle);
+            }
+            InputManager.KeyDown((ushort)key);
+        }
+
+        public void SendKeyUp(ConsoleKey key)
+        {
+            if (WinAPI.GetForegroundWindow() != _process.MainWindowHandle)
+            {
+                InputManager.SwitchWindow(_process.MainWindowHandle);
+            }
+            InputManager.KeyUp((ushort)key);
         }
 
         #region read / write methods
