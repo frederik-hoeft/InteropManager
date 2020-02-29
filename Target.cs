@@ -96,6 +96,94 @@ namespace InteropMgr
             SendKeyUp(key);
         }
 
+        public void SendKeyStroke(ConsoleKey key, bool preserveCurrentWindow)
+        {
+            IntPtr currentWindow = WinAPI.GetForegroundWindow();
+            // Console.WriteLine("Current window is 0x" + currentWindow.ToInt64().ToString("x"));
+            if (WinAPI.GetForegroundWindow() != _process.MainWindowHandle)
+            {
+                // Console.WriteLine("switching to 0x" + _process.MainWindowHandle.ToInt64().ToString("x"));
+                InputManager.SwitchWindow(_process.MainWindowHandle);
+            }
+            string code = key switch
+            {
+                ConsoleKey.Backspace => "{BACKSPACE}",
+                ConsoleKey.Delete => "{DELETE}",
+                ConsoleKey.DownArrow => "{DOWN}",
+                ConsoleKey.End => "{END}",
+                ConsoleKey.Enter => "{ENTER}",
+                ConsoleKey.Escape => "{ESC}",
+                ConsoleKey.Help => "{HELP}",
+                ConsoleKey.Home => "{HOME}",
+                ConsoleKey.Insert => "{INS}",
+                ConsoleKey.LeftArrow => "{LEFT}",
+                ConsoleKey.PageDown => "{PGDN}",
+                ConsoleKey.PageUp => "{PGUP}",
+                ConsoleKey.PrintScreen => "{PRTSC}",
+                ConsoleKey.RightArrow => "{RIGHT}",
+                ConsoleKey.Tab => "{TAB}",
+                ConsoleKey.UpArrow => "{UP}",
+                ConsoleKey.F1 => "{F1}",
+                ConsoleKey.F2 => "{F2}",
+                ConsoleKey.F3 => "{F3}",
+                ConsoleKey.F4 => "{F4}",
+                ConsoleKey.F5 => "{F5}",
+                ConsoleKey.F6 => "{F6}",
+                ConsoleKey.F7 => "{F7}",
+                ConsoleKey.F8 => "{F8}",
+                ConsoleKey.F9 => "{F9}",
+                ConsoleKey.F10 => "{F10}",
+                ConsoleKey.F11 => "{F11}",
+                ConsoleKey.F12 => "{F12}",
+                ConsoleKey.F13 => "{F13}",
+                ConsoleKey.F14 => "{F14}",
+                ConsoleKey.F15 => "{F15}",
+                ConsoleKey.F16 => "{F16}",
+                ConsoleKey.Add => "{ADD}",
+                ConsoleKey.Subtract => "{SUBTRACT}",
+                ConsoleKey.Multiply => "{MULTIPLY}",
+                ConsoleKey.Divide => "{DIVIDE}",
+                _ => key.ToString()
+            };
+            // Console.WriteLine("Sending \'" + code + "\' to target process...");
+            System.Windows.Forms.SendKeys.SendWait(code);
+            // Console.WriteLine("Success?");
+            if (WinAPI.GetForegroundWindow() != currentWindow && preserveCurrentWindow)
+            {
+                // Console.WriteLine("Switching back to 0x" + currentWindow.ToInt64().ToString("x"));
+                InputManager.SwitchWindow(currentWindow);
+            }
+            // Console.WriteLine("All done!");
+        }
+
+        public void SendKeys(string keys, bool preserveCurrentWindow)
+        {
+            IntPtr currentWindow = WinAPI.GetForegroundWindow();
+            if (WinAPI.GetForegroundWindow() != _process.MainWindowHandle)
+            {
+                InputManager.SwitchWindow(_process.MainWindowHandle);
+            }
+            System.Windows.Forms.SendKeys.SendWait(keys);
+            if (WinAPI.GetForegroundWindow() != currentWindow && preserveCurrentWindow)
+            {
+                InputManager.SwitchWindow(currentWindow);
+            }
+        }
+
+        public Task SendKeyPressAsync(ConsoleKey key, int millisecondsHoldtime, bool preserveCurrentWindow) => Task.Run(() => SendKeyPress(key, millisecondsHoldtime, preserveCurrentWindow));
+
+        public void SendKeyPress(ConsoleKey key, int millisecondsHoldtime, bool preserveCurrentWindow)
+        {
+            IntPtr currentWindow = WinAPI.GetForegroundWindow();
+            SendKeyDown(key);
+            Thread.Sleep(millisecondsHoldtime);
+            SendKeyUp(key);
+            if (WinAPI.GetForegroundWindow() != currentWindow && preserveCurrentWindow)
+            {
+                InputManager.SwitchWindow(currentWindow);
+            }
+        }
+
         public void SendKeyDown(ConsoleKey key)
         {
             if (WinAPI.GetForegroundWindow() != _process.MainWindowHandle)
