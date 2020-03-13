@@ -31,4 +31,10 @@ namespace InteropMgr
         public ProcessNotAttachedException() { }
         public ProcessNotAttachedException(string message) : base(message) { }
     }
+
+    public class TypeMismatchException : TypeAccessException
+    {
+        public TypeMismatchException() { }
+        public TypeMismatchException(string message) : base(message) { }
+    }
 }

@@ -10,11 +10,10 @@ namespace InteropMgr
 {
     public class Target
     {
-        private const byte NULL = 0;
-
         private Process _process = null;
         private IntPtr _handle = IntPtr.Zero;
         private int _permission = 0x0;
+        private MemoryManager _memoryManager;
         private Target() { }
         #region constructors
         public static Target Create(int processId)
@@ -23,6 +22,7 @@ namespace InteropMgr
             {
                 _process = Process.GetProcessById(processId)
             };
+            target._memoryManager = new MemoryManager(target);
             return target;
         }
 
@@ -32,6 +32,7 @@ namespace InteropMgr
             {
                 _process = process
             };
+            target._memoryManager = new MemoryManager(target);
             return target;
         }
 
@@ -46,6 +47,7 @@ namespace InteropMgr
             {
                 _process = processes[0]
             };
+            target._memoryManager = new MemoryManager(target);
             return target;
         }
 
@@ -57,10 +59,12 @@ namespace InteropMgr
             {
                 if (processes[i].MainWindowTitle == windowName)
                 {
-                    return new Target()
+                    Target target = new Target()
                     {
                         _process = processes[i]
                     };
+                    target._memoryManager = new MemoryManager(target);
+                    return target;
                 }
             }
             throw new ProcessEnumerationException("Could not find window name \'" + windowName + "\'");
@@ -87,22 +91,25 @@ namespace InteropMgr
             }
         }
 
-        public Task SendKeyPressAsync(ConsoleKey key, int millisecondsHoldtime) => Task.Run(() => SendKeyPress(key, millisecondsHoldtime));
-
-        public void SendKeyPress(ConsoleKey key, int millisecondsHoldtime)
+        public void SendKeys(string keys, bool preserveCurrentWindow)
         {
-            SendKeyDown(key);
-            Thread.Sleep(millisecondsHoldtime);
-            SendKeyUp(key);
+            IntPtr currentWindow = WinAPI.GetForegroundWindow();
+            if (WinAPI.GetForegroundWindow() != _process.MainWindowHandle)
+            {
+                InputManager.SwitchWindow(_process.MainWindowHandle);
+            }
+            System.Windows.Forms.SendKeys.SendWait(keys);
+            if (WinAPI.GetForegroundWindow() != currentWindow && preserveCurrentWindow)
+            {
+                InputManager.SwitchWindow(currentWindow);
+            }
         }
 
         public void SendKeyStroke(ConsoleKey key, bool preserveCurrentWindow)
         {
             IntPtr currentWindow = WinAPI.GetForegroundWindow();
-            // Console.WriteLine("Current window is 0x" + currentWindow.ToInt64().ToString("x"));
             if (WinAPI.GetForegroundWindow() != _process.MainWindowHandle)
             {
-                // Console.WriteLine("switching to 0x" + _process.MainWindowHandle.ToInt64().ToString("x"));
                 InputManager.SwitchWindow(_process.MainWindowHandle);
             }
             string code = key switch
@@ -145,144 +152,13 @@ namespace InteropMgr
                 ConsoleKey.Divide => "{DIVIDE}",
                 _ => key.ToString()
             };
-            // Console.WriteLine("Sending \'" + code + "\' to target process...");
             System.Windows.Forms.SendKeys.SendWait(code);
-            // Console.WriteLine("Success?");
-            if (WinAPI.GetForegroundWindow() != currentWindow && preserveCurrentWindow)
-            {
-                // Console.WriteLine("Switching back to 0x" + currentWindow.ToInt64().ToString("x"));
-                InputManager.SwitchWindow(currentWindow);
-            }
-            // Console.WriteLine("All done!");
-        }
-
-        public void SendKeys(string keys, bool preserveCurrentWindow)
-        {
-            IntPtr currentWindow = WinAPI.GetForegroundWindow();
-            if (WinAPI.GetForegroundWindow() != _process.MainWindowHandle)
-            {
-                InputManager.SwitchWindow(_process.MainWindowHandle);
-            }
-            System.Windows.Forms.SendKeys.SendWait(keys);
             if (WinAPI.GetForegroundWindow() != currentWindow && preserveCurrentWindow)
             {
                 InputManager.SwitchWindow(currentWindow);
             }
         }
 
-        public Task SendKeyPressAsync(ConsoleKey key, int millisecondsHoldtime, bool preserveCurrentWindow) => Task.Run(() => SendKeyPress(key, millisecondsHoldtime, preserveCurrentWindow));
-
-        public void SendKeyPress(ConsoleKey key, int millisecondsHoldtime, bool preserveCurrentWindow)
-        {
-            IntPtr currentWindow = WinAPI.GetForegroundWindow();
-            SendKeyDown(key);
-            Thread.Sleep(millisecondsHoldtime);
-            SendKeyUp(key);
-            if (WinAPI.GetForegroundWindow() != currentWindow && preserveCurrentWindow)
-            {
-                InputManager.SwitchWindow(currentWindow);
-            }
-        }
-
-        public void SendKeyDown(ConsoleKey key)
-        {
-            if (WinAPI.GetForegroundWindow() != _process.MainWindowHandle)
-            {
-                InputManager.SwitchWindow(_process.MainWindowHandle);
-            }
-            InputManager.KeyDown((ushort)key);
-        }
-
-        public void SendKeyUp(ConsoleKey key)
-        {
-            if (WinAPI.GetForegroundWindow() != _process.MainWindowHandle)
-            {
-                InputManager.SwitchWindow(_process.MainWindowHandle);
-            }
-            InputManager.KeyUp((ushort)key);
-        }
-
-        #region read / write methods
-        public byte[] ReadBytesFromMemory(long address, int length)
-        {
-            CheckProcessAttached();
-            CheckReadPermission();
-            int bytesRead = 0;
-            byte[] buffer = new byte[length];
-            bool success = WinAPI.ReadProcessMemory((int)_handle, address, buffer, buffer.Length, ref bytesRead);
-            if (!success)
-            {
-                throw new MemoryReadException("CRITICAL ERROR: Could not read memory at 0x" + address.ToString("x") + "!");
-            }
-            return buffer;
-        }
-
-        public float ReadFloatFromMemory(long address)
-        {
-            CheckProcessAttached();
-            CheckReadPermission();
-            int bytesRead = 0;
-            byte[] buffer = new byte[4];
-
-            bool success = WinAPI.ReadProcessMemory((int)_handle, address, buffer, buffer.Length, ref bytesRead);
-            if (!success)
-            {
-                throw new MemoryReadException("CRITICAL ERROR: Could not read memory at 0x" + address.ToString("x") + "!");
-            }
-            return BitConverter.ToSingle(buffer, 0);
-        }
-
-        public string ReadStringFromMemory(long address)
-        {
-            CheckProcessAttached();
-            CheckReadPermission();
-            StringBuilder builder = new StringBuilder();
-            int bytesRead = 0;
-            byte[] buffer = new byte[1];
-            buffer[0] = 1;
-            while (buffer[0] != NULL)
-            {
-                bool success = WinAPI.ReadProcessMemory((int)_handle, address, buffer, buffer.Length, ref bytesRead);
-                if (!success)
-                {
-                    throw new MemoryReadException("CRITICAL ERROR: Could not read memory at 0x" + address.ToString("x") + "!");
-                }
-                builder.Append((char)buffer[0]);
-                address += sizeof(byte);
-            }
-            return builder.ToString();
-        }
-        //-----------------------------------------------------------------------------------------------------------
-        //                                      WRITE PROCESS MEMORY
-        //-----------------------------------------------------------------------------------------------------------
-        public void WriteFloatToMemory(long address, float value)
-        {
-            CheckProcessAttached();
-            CheckWritePermission();
-            int bytesWritten = 0;
-            byte[] buffer = value.GetBytes();
-
-            bool success = WinAPI.WriteProcessMemory((int)_handle, address, buffer, buffer.Length, ref bytesWritten);
-            if (!success)
-            {
-                throw new MemoryWriteException("CRITICAL ERROR: Could not write to memory at 0x" + address.ToString("x") + "!");
-            }
-        }
-
-        public void WriteStringToMemory(long address, string value, Encoding encoding)
-        {
-            CheckProcessAttached();
-            CheckWritePermission();
-            int bytesWritten = 0;
-            byte[] buffer = encoding.GetBytes(value);
-
-            bool success = WinAPI.WriteProcessMemory((int)_handle, address, buffer, buffer.Length, ref bytesWritten);
-            if (!success)
-            {
-                throw new MemoryWriteException("CRITICAL ERROR: Could not write to memory at 0x" + address.ToString("x") + "!");
-            }
-        }
-        #endregion
         #endregion
         #region getters / setters
         public Process Process
@@ -297,28 +173,9 @@ namespace InteropMgr
         {
             get { return _handle; }
         }
-        #endregion
-        #region private methods
-        private void CheckProcessAttached()
+        public MemoryManager MemoryManager
         {
-            if (_handle == IntPtr.Zero)
-            {
-                throw new ProcessNotAttachedException("Not attached to any process.");
-            }
-        }
-        private void CheckWritePermission()
-        {
-            if ((_permission & (int)Permissions.ProcessPermission.PROCESS_VM_WRITE) != (int)Permissions.ProcessPermission.PROCESS_VM_WRITE)
-            {
-                throw new UnauthorizedAccessException("Cannot write process memory: missing permission 'PROCESS_VM_WRITE'");
-            }
-        }
-        private void CheckReadPermission()
-        {
-            if ((_permission & (int)Permissions.ProcessPermission.PROCESS_VM_READ) != (int)Permissions.ProcessPermission.PROCESS_VM_READ)
-            {
-                throw new UnauthorizedAccessException("Cannot read process memory: missing permission 'PROCESS_VM_READ'");
-            }
+            get { return _memoryManager; }
         }
         #endregion
     }

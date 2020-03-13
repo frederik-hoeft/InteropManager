@@ -54,6 +54,7 @@
     <Compile Include="Extensions.cs" />
     <Compile Include="HelperMethods.cs" />
     <Compile Include="InputManager.cs" />
+    <Compile Include="MemoryManager.cs" />
     <Compile Include="Permissions.cs" />
     <Compile Include="InteropManager.cs" />
     <Compile Include="Exceptions.cs" />
@@ -67,4 +68,7 @@
     <None Include="App.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>copy InteropManager.dll C:\usr\bin\InteropManager.dll</PostBuildEvent>
+  </PropertyGroup>
 </Project>

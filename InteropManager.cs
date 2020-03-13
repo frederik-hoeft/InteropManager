@@ -4,16 +4,67 @@ using System.Diagnostics;
 using System.Management;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace InteropMgr
 {
-#if false
+
 #nullable enable
     /// <summary>
     /// TODO: REFACTORING IN PROGRESS
     /// </summary>
-    public class InteropManager
+    public static class InteropManager
     {
+        public static class RawMethods
+        {
+            public static void SendKeys(Target target, string keys, bool preserveCurrentWindow)
+            {
+                IntPtr currentWindow = WinAPI.GetForegroundWindow();
+                if (WinAPI.GetForegroundWindow() != target.Process.MainWindowHandle)
+                {
+                    InputManager.SwitchWindow(target.Process.MainWindowHandle);
+                }
+                System.Windows.Forms.SendKeys.SendWait(keys);
+                if (WinAPI.GetForegroundWindow() != currentWindow && preserveCurrentWindow)
+                {
+                    InputManager.SwitchWindow(currentWindow);
+                }
+            }
+            public static Task SendKeyPressAsync(Target target, ConsoleKey key, int millisecondsHoldtime, bool preserveCurrentWindow) => Task.Run(() => SendKeyPress(target, key, millisecondsHoldtime, preserveCurrentWindow));
+
+            public static void SendKeyPress(Target target, ConsoleKey key, int millisecondsHoldtime, bool preserveCurrentWindow)
+            {
+                IntPtr currentWindow = WinAPI.GetForegroundWindow();
+                SendKeyDown(target, key);
+                Thread.Sleep(millisecondsHoldtime);
+                SendKeyUp(target, key);
+                if (WinAPI.GetForegroundWindow() != currentWindow && preserveCurrentWindow)
+                {
+                    InputManager.SwitchWindow(currentWindow);
+                }
+            }
+            public static void SendKeyDown(Target target, ConsoleKey key)
+            {
+                if (WinAPI.GetForegroundWindow() != target.Process.MainWindowHandle)
+                {
+                    InputManager.SwitchWindow(target.Process.MainWindowHandle);
+                }
+                InputManager.KeyDown((ushort)key);
+            }
+
+            public static void SendKeyUp(Target target, ConsoleKey key)
+            {
+                if (WinAPI.GetForegroundWindow() != target.Process.MainWindowHandle)
+                {
+                    InputManager.SwitchWindow(target.Process.MainWindowHandle);
+                }
+                InputManager.KeyUp((ushort)key);
+            }
+        }
+    }   
+#if false
+
         public const byte NULL = 0;
         
 

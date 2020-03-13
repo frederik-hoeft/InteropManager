@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace InteropMgr
 {
-    public static class Extensions
+    public static partial class Extensions
     {
         public unsafe static byte[] GetBytes(this float value)
         {
@@ -19,6 +19,8 @@ namespace InteropMgr
             }
             return bytes;
         }
+
+        public static bool IsNULL(this byte b) => b == (byte)0;
 
         public static int GetParentPid(this Process process)
         {
