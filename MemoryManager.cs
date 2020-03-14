@@ -14,42 +14,116 @@ namespace InteropMgr
         {
             this.target = target;
         }
-        public long DereferenceWithOffset(long baseAddress, long offset)
+        public long DereferenceWithOffset64(long baseAddress, long offset)
         {
-            int bytesRead = 0;
-            byte[] buffer = new byte[8];
-
-            long address = baseAddress + offset;
-            bool success = WinAPI.ReadProcessMemory((int)target.Handle, address, buffer, buffer.Length, ref bytesRead);
-            if (!success)
-            {
-                throw new MemoryReadException("CRITICAL ERROR: Could not read memory at 0x" + address.ToString("x") + "!");
-            }
-            return BitConverter.ToInt64(buffer, 0);
+            return ReadFromMemory<long>(baseAddress + offset);
         }
-        public long CalculatePointerPath(Target target, List<long> pointerPath)
+
+        public long DereferenceWithOffset32(long baseAddress, long offset)
         {
+            return ReadFromMemory<uint>(baseAddress + offset);
+        }
+
+        public long GetBaseAddressPointer()
+        {
+            return GetBaseAddressPointer(false);
+        }
+
+        public long GetBaseAddressPointer(bool printDebugInfo)
+        {
+            Debug("Determining base address of main module ...", printDebugInfo);
+            long baseAddress = target.Process.MainModule.BaseAddress.ToInt64();
+            Debug("Base address is: 0x" + baseAddress.ToString("x"), printDebugInfo);
+            AssertProcessAttached();
+            AssertReadPermission();
+            Debug("Trying to read memory from attached process ...", printDebugInfo);
+            long address;
+            if (target.Is32BitProcess)
+            {
+                address = ReadFromMemory<uint>(baseAddress);
+            }
+            else
+            {
+                address = ReadFromMemory<long>(baseAddress);
+            }
+            if (printDebugInfo)
+            {
+                string hexAddress = address.ToString("x");
+                Console.WriteLine("+--------------------------------------------------------------------+");
+                Console.WriteLine("| SUCCESS! Base address is pointing to: 0x" + hexAddress + new string(' ', 27 - hexAddress.Length > 0 ? 27 - hexAddress.Length : 0) + "|");
+                Console.WriteLine("+--------------------------------------------------------------------+");
+            }
+            return address;
+        }
+
+        public long CalculatePointerPath(List<long> pointerPath)
+        {
+            return CalculatePointerPath(pointerPath, false);
+        }
+
+        public long CalculatePointerPath(List<long> pointerPath, bool printDebugInfo)
+        {
+            AssertProcessAttached();
+            AssertReadPermission();
+            Debug("Calculating pointer path: ", printDebugInfo);
+            if (printDebugInfo)
+            {
+                PrintPointerPath(pointerPath);
+            }
             long address = target.Process.MainModule.BaseAddress.ToInt64();
+            if (printDebugInfo)
+            {
+                Debug("Base address is: 0x" + address.ToString("x"), true);
+                long addr;
+                if (target.Is32BitProcess)
+                {
+                    addr = target.MemoryManager.ReadFromMemory<uint>(address);
+                }
+                else
+                {
+                    addr = target.MemoryManager.ReadFromMemory<long>(address);
+                }
+                Debug("  it points to " + addr.ToString("x"), true);
+            }
             long previousAddress = 0;
             for (int i = 0; i < pointerPath.Count; i++)
             {
                 if (previousAddress == 0)
                 {
                     previousAddress = address;
-                    address = DereferenceWithOffset(address, pointerPath[i]);
+                    if (target.Is32BitProcess)
+                    {
+                        address = DereferenceWithOffset32(address, pointerPath[i]);
+                    }
+                    else
+                    {
+                        address = DereferenceWithOffset64(address, pointerPath[i]);
+                    }
+                    Debug("  ['" + target.Process.ProcessName + "' + 0x" + pointerPath[i].ToString("x") + "] -> 0x" + address.ToString("x"),printDebugInfo);
                     continue;
                 }
                 if (i + 1 < pointerPath.Count)
                 {
                     previousAddress = address;
-                    address = DereferenceWithOffset(address, pointerPath[i]);
+                    if (target.Is32BitProcess)
+                    {
+                        address = DereferenceWithOffset32(address, pointerPath[i]);
+                    }
+                    else
+                    {
+                        address = DereferenceWithOffset64(address, pointerPath[i]);
+                    }
+                    Debug("  [0x" + previousAddress.ToString("x") + " + 0x" + pointerPath[i].ToString("x") + "] -> 0x" + address.ToString("x"), printDebugInfo);
                 }
                 else
                 {
                     previousAddress = address;
                     address += pointerPath[i];
+                    Debug("   0x" + previousAddress.ToString("x") + " + 0x" + pointerPath[i].ToString("x") + " = 0x" + address.ToString("x"), printDebugInfo);
                 }
             }
+            Debug("CALCULATED ADDRESS IS: 0x" + address.ToString("x"), printDebugInfo);
+            Debug("", printDebugInfo);
             return address;
         }
 
@@ -60,7 +134,7 @@ namespace InteropMgr
             AssertReadPermission();
             int bytesRead = 0;
             byte[] buffer = new byte[length];
-            bool success = WinAPI.ReadProcessMemory((int)target.Handle, address, buffer, buffer.Length, ref bytesRead);
+            bool success = WinAPI.ReadProcessMemory((uint)target.Handle, address, buffer, (uint)buffer.Length, ref bytesRead);
             if (!success)
             {
                 throw new MemoryReadException("CRITICAL ERROR: Could not read memory at 0x" + address.ToString("x") + "!");
@@ -74,7 +148,7 @@ namespace InteropMgr
             AssertReadPermission();
             int bytesRead = 0;
             byte[] buffer = new byte[sizeof(T)];
-            bool success = WinAPI.ReadProcessMemory((int)target.Handle, address, buffer, buffer.Length, ref bytesRead);
+            bool success = WinAPI.ReadProcessMemory((uint)target.Handle, address, buffer, (uint)buffer.Length, ref bytesRead);
             if (!success)
             {
                 throw new MemoryReadException("CRITICAL ERROR: Could not read memory at 0x" + address.ToString("x") + "!");
@@ -94,7 +168,7 @@ namespace InteropMgr
             int bytesRead = 0;
             byte[] buffer = new byte[4];
 
-            bool success = WinAPI.ReadProcessMemory((int)target.Handle, address, buffer, buffer.Length, ref bytesRead);
+            bool success = WinAPI.ReadProcessMemory((uint)target.Handle, address, buffer, (uint)buffer.Length, ref bytesRead);
             if (!success)
             {
                 throw new MemoryReadException("CRITICAL ERROR: Could not read memory at 0x" + address.ToString("x") + "!");
@@ -112,7 +186,7 @@ namespace InteropMgr
             buffer[0] = 1;
             while (!buffer[0].IsNULL())
             {
-                bool success = WinAPI.ReadProcessMemory((int)target.Handle, address, buffer, buffer.Length, ref bytesRead);
+                bool success = WinAPI.ReadProcessMemory((uint)target.Handle, address, buffer, (uint)buffer.Length, ref bytesRead);
                 if (!success)
                 {
                     throw new MemoryReadException("CRITICAL ERROR: Could not read memory at 0x" + address.ToString("x") + "!");
@@ -132,7 +206,24 @@ namespace InteropMgr
             int bytesWritten = 0;
             byte[] buffer = value.GetBytes();
 
-            bool success = WinAPI.WriteProcessMemory((int)target.Handle, address, buffer, buffer.Length, ref bytesWritten);
+            bool success = WinAPI.WriteProcessMemory((uint)target.Handle, address, buffer, (uint)buffer.Length, ref bytesWritten);
+            if (!success)
+            {
+                throw new MemoryWriteException("CRITICAL ERROR: Could not write to memory at 0x" + address.ToString("x") + "!");
+            }
+        }
+
+        public unsafe void WriteToMemory<T>(long address, T value) where T : unmanaged
+        {
+            AssertProcessAttached();
+            AssertWritePermission();
+            int bytesWritten = 0;
+            byte[] buffer = new byte[sizeof(T)];
+            fixed (byte* b = buffer)
+            {
+                *b = *((byte*)&value);
+            }
+            bool success = WinAPI.WriteProcessMemory((uint)target.Handle, address, buffer, (uint)buffer.Length, ref bytesWritten);
             if (!success)
             {
                 throw new MemoryWriteException("CRITICAL ERROR: Could not write to memory at 0x" + address.ToString("x") + "!");
@@ -146,7 +237,7 @@ namespace InteropMgr
             int bytesWritten = 0;
             byte[] buffer = encoding.GetBytes(value);
 
-            bool success = WinAPI.WriteProcessMemory((int)target.Handle, address, buffer, buffer.Length, ref bytesWritten);
+            bool success = WinAPI.WriteProcessMemory((uint)target.Handle, address, buffer, (uint)buffer.Length, ref bytesWritten);
             if (!success)
             {
                 throw new MemoryWriteException("CRITICAL ERROR: Could not write to memory at 0x" + address.ToString("x") + "!");
@@ -173,6 +264,25 @@ namespace InteropMgr
             {
                 throw new UnauthorizedAccessException("Cannot read process memory: missing permission 'PROCESS_VM_READ'");
             }
+        }
+        private void Debug(string message, bool display)
+        {
+            if (display)
+            {
+                Console.WriteLine(message);
+            }
+        }
+        private void PrintPointerPath(List<long> path)
+        {
+            for (int i = 0; i < path.Count; i++)
+            {
+                if (i != 0)
+                {
+                    Console.Write(" -> ");
+                }
+                Console.Write("0x" + path[i].ToString("x"));
+            }
+            Console.WriteLine("");
         }
     }
 }

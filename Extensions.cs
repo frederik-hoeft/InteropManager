@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Management;
@@ -36,6 +37,23 @@ namespace InteropMgr
         public static Process GetParentProcess(this Process process)
         {
             return Process.GetProcessById(process.GetParentPid());
+        }
+
+        public static bool IsWin64Emulator(this Process process)
+        {
+            if ((Environment.OSVersion.Version.Major > 5)
+                || ((Environment.OSVersion.Version.Major == 5) && (Environment.OSVersion.Version.Minor >= 1)))
+            {
+                try
+                {
+                    return WinAPI.IsWow64Process(process.Handle, out bool retVal) && retVal;
+                }
+                catch (Win32Exception)
+                {
+                    throw new UnauthorizedAccessException("ACCESS DENIED: could not determine if process is running WoW64.");
+                }
+            }
+            return false;
         }
     }
 }

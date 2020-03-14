@@ -13,6 +13,7 @@ namespace InteropMgr
         private Process _process = null;
         private IntPtr _handle = IntPtr.Zero;
         private int _permission = 0x0;
+        private bool _is32bit = false;
         private MemoryManager _memoryManager;
         private Target() { }
         #region constructors
@@ -23,6 +24,7 @@ namespace InteropMgr
                 _process = Process.GetProcessById(processId)
             };
             target._memoryManager = new MemoryManager(target);
+            target._is32bit = target._process.IsWin64Emulator();
             return target;
         }
 
@@ -30,7 +32,8 @@ namespace InteropMgr
         {
             Target target = new Target
             {
-                _process = process
+                _process = process,
+                _is32bit = process.IsWin64Emulator()
             };
             target._memoryManager = new MemoryManager(target);
             return target;
@@ -47,6 +50,7 @@ namespace InteropMgr
             {
                 _process = processes[0]
             };
+            target._is32bit = target._process.IsWin64Emulator();
             target._memoryManager = new MemoryManager(target);
             return target;
         }
@@ -64,6 +68,7 @@ namespace InteropMgr
                         _process = processes[i]
                     };
                     target._memoryManager = new MemoryManager(target);
+                    target._is32bit = target._process.IsWin64Emulator();
                     return target;
                 }
             }
@@ -176,6 +181,10 @@ namespace InteropMgr
         public MemoryManager MemoryManager
         {
             get { return _memoryManager; }
+        }
+        public bool Is32BitProcess
+        {
+            get { return _is32bit; }
         }
         #endregion
     }

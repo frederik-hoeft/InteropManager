@@ -36,6 +36,10 @@ namespace InteropMgr
         [DllImport("user32.dll", SetLastError = true)]
         public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
+        [DllImport("kernel32.dll", SetLastError = true, CallingConvention = CallingConvention.Winapi)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool IsWow64Process([In] IntPtr process, [Out] out bool wow64Process);
+
         [DllImport("user32.dll")]
         public static extern uint MapVirtualKey(uint uCode, uint uMapType);
 
@@ -46,7 +50,7 @@ namespace InteropMgr
         public static extern bool PostMessage(IntPtr hWnd, uint msg, int wParam, int lParam);
 
         [DllImport("kernel32.dll")]
-        public static extern bool ReadProcessMemory(int hProcess, long lpBaseAddress, byte[] lpBuffer, int dwSize, ref int lpNumberOfBytesRead);
+        public static extern bool ReadProcessMemory(uint hProcess, long lpBaseAddress, byte[] lpBuffer, uint dwSize, ref int lpNumberOfBytesRead);
 
         [DllImport("User32.dll")]
         public static extern uint SendInput(uint numberOfInputs, [MarshalAs(UnmanagedType.LPArray, SizeConst = 1)] InputManager.NativeResources.INPUT[] input, int structSize);
@@ -62,7 +66,7 @@ namespace InteropMgr
         public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern bool WriteProcessMemory(int hProcess, long lpBaseAddress, byte[] lpBuffer, int dwSize, ref int lpNumberOfBytesWritten);
+        public static extern bool WriteProcessMemory(uint hProcess, long lpBaseAddress, byte[] lpBuffer, uint dwSize, ref int lpNumberOfBytesWritten);
 
         [DllImport("user32.dll")]
         public static extern byte VkKeyScan(char ch);
