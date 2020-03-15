@@ -39,6 +39,13 @@ namespace InteropMgr
             END = 0xFFF
         }
         [Flags]
+        public enum MemoryPermission
+        {
+            MEM_COMMIT = 0x00001000,
+            MEM_RESERVE = 0x00002000,
+            PAGE_READWRITE = 4
+        }
+        [Flags]
         public enum TokenPermission
         {
             TOKEN_ASSIGN_PRIMARY = 0x0001,

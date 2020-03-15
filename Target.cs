@@ -15,6 +15,8 @@ namespace InteropMgr
         private int _permission = 0x0;
         private bool _is32bit = false;
         private MemoryManager _memoryManager;
+        private Injector _injector;
+        private Assertions _assersions;
         private Target() { }
         #region constructors
         public static Target Create(int processId)
@@ -24,6 +26,8 @@ namespace InteropMgr
                 _process = Process.GetProcessById(processId)
             };
             target._memoryManager = new MemoryManager(target);
+            target._injector = new Injector(target);
+            target._assersions = new Assertions(target);
             target._is32bit = target._process.IsWin64Emulator();
             return target;
         }
@@ -36,6 +40,8 @@ namespace InteropMgr
                 _is32bit = process.IsWin64Emulator()
             };
             target._memoryManager = new MemoryManager(target);
+            target._injector = new Injector(target);
+            target._assersions = new Assertions(target);
             return target;
         }
 
@@ -44,7 +50,7 @@ namespace InteropMgr
             Process[] processes = Process.GetProcessesByName(processName);
             if (processes.Length != 1)
             {
-                throw new ProcessEnumerationException("Found more than one process called \"" + processName + "\".");
+                throw new ProcessEnumerationException("Found zero or more than one process called \"" + processName + "\".");
             }
             Target target = new Target()
             {
@@ -52,6 +58,8 @@ namespace InteropMgr
             };
             target._is32bit = target._process.IsWin64Emulator();
             target._memoryManager = new MemoryManager(target);
+            target._injector = new Injector(target);
+            target._assersions = new Assertions(target);
             return target;
         }
 
@@ -68,6 +76,8 @@ namespace InteropMgr
                         _process = processes[i]
                     };
                     target._memoryManager = new MemoryManager(target);
+                    target._injector = new Injector(target);
+                    target._assersions = new Assertions(target);
                     target._is32bit = target._process.IsWin64Emulator();
                     return target;
                 }
@@ -181,6 +191,14 @@ namespace InteropMgr
         public MemoryManager MemoryManager
         {
             get { return _memoryManager; }
+        }
+        public Injector Injector
+        {
+            get { return _injector; }
+        }
+        public Assertions Assertions
+        {
+            get { return _assersions; }
         }
         public bool Is32BitProcess
         {

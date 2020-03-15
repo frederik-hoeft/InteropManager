@@ -12,5 +12,12 @@ namespace InteropMgr
         {
             return (high << 16) | (low & 0xffff);
         }
+        public static void Debug(string message, bool display)
+        {
+            if (display)
+            {
+                Console.WriteLine(message);
+            }
+        }
     }
 }

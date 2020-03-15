@@ -31,12 +31,12 @@ namespace InteropMgr
 
         public long GetBaseAddressPointer(bool printDebugInfo)
         {
-            Debug("Determining base address of main module ...", printDebugInfo);
+            HelperMethods.Debug("Determining base address of main module ...", printDebugInfo);
             long baseAddress = target.Process.MainModule.BaseAddress.ToInt64();
-            Debug("Base address is: 0x" + baseAddress.ToString("x"), printDebugInfo);
-            AssertProcessAttached();
-            AssertReadPermission();
-            Debug("Trying to read memory from attached process ...", printDebugInfo);
+            HelperMethods.Debug("Base address is: 0x" + baseAddress.ToString("x"), printDebugInfo);
+            target.Assertions.AssertProcessAttached();
+            target.Assertions.AssertReadPermission();
+            HelperMethods.Debug("Trying to read memory from attached process ...", printDebugInfo);
             long address;
             if (target.Is32BitProcess)
             {
@@ -63,9 +63,9 @@ namespace InteropMgr
 
         public long CalculatePointerPath(List<long> pointerPath, bool printDebugInfo)
         {
-            AssertProcessAttached();
-            AssertReadPermission();
-            Debug("Calculating pointer path: ", printDebugInfo);
+            target.Assertions.AssertProcessAttached();
+            target.Assertions.AssertReadPermission();
+            HelperMethods.Debug("Calculating pointer path: ", printDebugInfo);
             if (printDebugInfo)
             {
                 PrintPointerPath(pointerPath);
@@ -73,7 +73,7 @@ namespace InteropMgr
             long address = target.Process.MainModule.BaseAddress.ToInt64();
             if (printDebugInfo)
             {
-                Debug("Base address is: 0x" + address.ToString("x"), true);
+                HelperMethods.Debug("Base address is: 0x" + address.ToString("x"), true);
                 long addr;
                 if (target.Is32BitProcess)
                 {
@@ -83,7 +83,7 @@ namespace InteropMgr
                 {
                     addr = target.MemoryManager.ReadFromMemory<long>(address);
                 }
-                Debug("  it points to " + addr.ToString("x"), true);
+                HelperMethods.Debug("  it points to " + addr.ToString("x"), true);
             }
             long previousAddress = 0;
             for (int i = 0; i < pointerPath.Count; i++)
@@ -99,7 +99,7 @@ namespace InteropMgr
                     {
                         address = DereferenceWithOffset64(address, pointerPath[i]);
                     }
-                    Debug("  ['" + target.Process.ProcessName + "' + 0x" + pointerPath[i].ToString("x") + "] -> 0x" + address.ToString("x"),printDebugInfo);
+                    HelperMethods.Debug("  ['" + target.Process.ProcessName + "' + 0x" + pointerPath[i].ToString("x") + "] -> 0x" + address.ToString("x"),printDebugInfo);
                     continue;
                 }
                 if (i + 1 < pointerPath.Count)
@@ -113,25 +113,25 @@ namespace InteropMgr
                     {
                         address = DereferenceWithOffset64(address, pointerPath[i]);
                     }
-                    Debug("  [0x" + previousAddress.ToString("x") + " + 0x" + pointerPath[i].ToString("x") + "] -> 0x" + address.ToString("x"), printDebugInfo);
+                    HelperMethods.Debug("  [0x" + previousAddress.ToString("x") + " + 0x" + pointerPath[i].ToString("x") + "] -> 0x" + address.ToString("x"), printDebugInfo);
                 }
                 else
                 {
                     previousAddress = address;
                     address += pointerPath[i];
-                    Debug("   0x" + previousAddress.ToString("x") + " + 0x" + pointerPath[i].ToString("x") + " = 0x" + address.ToString("x"), printDebugInfo);
+                    HelperMethods.Debug("   0x" + previousAddress.ToString("x") + " + 0x" + pointerPath[i].ToString("x") + " = 0x" + address.ToString("x"), printDebugInfo);
                 }
             }
-            Debug("CALCULATED ADDRESS IS: 0x" + address.ToString("x"), printDebugInfo);
-            Debug("", printDebugInfo);
+            HelperMethods.Debug("CALCULATED ADDRESS IS: 0x" + address.ToString("x"), printDebugInfo);
+            HelperMethods.Debug("", printDebugInfo);
             return address;
         }
 
         #region read / write methods
         public byte[] ReadBytesFromMemory(long address, int length)
         {
-            AssertProcessAttached();
-            AssertReadPermission();
+            target.Assertions.AssertProcessAttached();
+            target.Assertions.AssertReadPermission();
             int bytesRead = 0;
             byte[] buffer = new byte[length];
             bool success = WinAPI.ReadProcessMemory((uint)target.Handle, address, buffer, (uint)buffer.Length, ref bytesRead);
@@ -144,8 +144,8 @@ namespace InteropMgr
 
         public unsafe T ReadFromMemory<T>(long address) where T : unmanaged
         {
-            AssertProcessAttached();
-            AssertReadPermission();
+            target.Assertions.AssertProcessAttached();
+            target.Assertions.AssertReadPermission();
             int bytesRead = 0;
             byte[] buffer = new byte[sizeof(T)];
             bool success = WinAPI.ReadProcessMemory((uint)target.Handle, address, buffer, (uint)buffer.Length, ref bytesRead);
@@ -160,26 +160,24 @@ namespace InteropMgr
             }
             return value;
         }
-
-        public float ReadFloatFromMemory(long address)
+        
+        public T ReadStructFromMemory<T>(long address) where T : struct
         {
-            AssertProcessAttached();
-            AssertReadPermission();
-            int bytesRead = 0;
-            byte[] buffer = new byte[4];
-
-            bool success = WinAPI.ReadProcessMemory((uint)target.Handle, address, buffer, (uint)buffer.Length, ref bytesRead);
-            if (!success)
-            {
-                throw new MemoryReadException("CRITICAL ERROR: Could not read memory at 0x" + address.ToString("x") + "!");
-            }
-            return BitConverter.ToSingle(buffer, 0);
+            target.Assertions.AssertProcessAttached();
+            target.Assertions.AssertReadPermission();
+            int size = Marshal.SizeOf(typeof(T));
+            byte[] buffer = ReadBytesFromMemory(address, size);
+            IntPtr structPointer = Marshal.AllocHGlobal(size);
+            Marshal.Copy(buffer, 0, structPointer, size);
+            T result = (T)Marshal.PtrToStructure(structPointer, typeof(T));
+            Marshal.FreeHGlobal(structPointer);
+            return result;
         }
 
         public string ReadStringFromMemory(long address)
         {
-            AssertProcessAttached();
-            AssertReadPermission();
+            target.Assertions.AssertProcessAttached();
+            target.Assertions.AssertReadPermission();
             StringBuilder builder = new StringBuilder();
             int bytesRead = 0;
             byte[] buffer = new byte[1];
@@ -199,14 +197,13 @@ namespace InteropMgr
         //-----------------------------------------------------------------------------------------------------------
         //                                      WRITE PROCESS MEMORY
         //-----------------------------------------------------------------------------------------------------------
-        public void WriteFloatToMemory(long address, float value)
-        {
-            AssertProcessAttached();
-            AssertWritePermission();
-            int bytesWritten = 0;
-            byte[] buffer = value.GetBytes();
 
-            bool success = WinAPI.WriteProcessMemory((uint)target.Handle, address, buffer, (uint)buffer.Length, ref bytesWritten);
+        public void WriteBytesToMemory(long address, byte[] bytes)
+        {
+            target.Assertions.AssertProcessAttached();
+            target.Assertions.AssertWritePermission();
+            int bytesWritten = 0;
+            bool success = WinAPI.WriteProcessMemory((uint)target.Handle, address, bytes, (uint)bytes.Length, ref bytesWritten);
             if (!success)
             {
                 throw new MemoryWriteException("CRITICAL ERROR: Could not write to memory at 0x" + address.ToString("x") + "!");
@@ -215,8 +212,8 @@ namespace InteropMgr
 
         public unsafe void WriteToMemory<T>(long address, T value) where T : unmanaged
         {
-            AssertProcessAttached();
-            AssertWritePermission();
+            target.Assertions.AssertProcessAttached();
+            target.Assertions.AssertWritePermission();
             int bytesWritten = 0;
             byte[] buffer = new byte[sizeof(T)];
             fixed (byte* b = buffer)
@@ -230,10 +227,26 @@ namespace InteropMgr
             }
         }
 
+        public unsafe void WriteStructToMemory<T>(long address, T source) where T : struct
+        {
+            target.Assertions.AssertProcessAttached();
+            target.Assertions.AssertWritePermission();
+            int size = Marshal.SizeOf(typeof(T));
+            IntPtr structPointer = Marshal.AllocHGlobal(size);
+            Marshal.StructureToPtr(source, structPointer, false);
+            byte[] buffer = new byte[size];
+            for (int i = 0; i < size; i++)
+            {
+                buffer[i] = *((byte*)structPointer + i);
+            }
+            Marshal.DestroyStructure(structPointer, typeof(T));
+            WriteBytesToMemory(address, buffer);
+        }
+
         public void WriteStringToMemory(long address, string value, Encoding encoding)
         {
-            AssertProcessAttached();
-            AssertWritePermission();
+            target.Assertions.AssertProcessAttached();
+            target.Assertions.AssertWritePermission();
             int bytesWritten = 0;
             byte[] buffer = encoding.GetBytes(value);
 
@@ -244,34 +257,6 @@ namespace InteropMgr
             }
         }
         #endregion
-        private void AssertProcessAttached()
-        {
-            if (target.Handle == IntPtr.Zero)
-            {
-                throw new ProcessNotAttachedException("Not attached to any process.");
-            }
-        }
-        private void AssertWritePermission()
-        {
-            if (!target.HasProcessPermission(Permissions.ProcessPermission.PROCESS_VM_WRITE))
-            {
-                throw new UnauthorizedAccessException("Cannot write process memory: missing permission 'PROCESS_VM_WRITE'");
-            }
-        }
-        private void AssertReadPermission()
-        {
-            if (!target.HasProcessPermission(Permissions.ProcessPermission.PROCESS_VM_READ))
-            {
-                throw new UnauthorizedAccessException("Cannot read process memory: missing permission 'PROCESS_VM_READ'");
-            }
-        }
-        private void Debug(string message, bool display)
-        {
-            if (display)
-            {
-                Console.WriteLine(message);
-            }
-        }
         private void PrintPointerPath(List<long> path)
         {
             for (int i = 0; i < path.Count; i++)

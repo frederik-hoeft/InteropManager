@@ -51,8 +51,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assertions.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="HelperMethods.cs" />
+    <Compile Include="Injector.cs" />
     <Compile Include="InputManager.cs" />
     <Compile Include="MemoryManager.cs" />
     <Compile Include="Permissions.cs" />
