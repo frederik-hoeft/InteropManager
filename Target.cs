@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -174,6 +175,23 @@ namespace InteropMgr
             }
         }
 
+        public void SetWorkingDirectory(string path)
+        {
+            if (!Directory.Exists(path))
+            {
+                throw new DirectoryNotFoundException("Directory does not exist.");
+            }
+            if (Is32BitProcess)
+            {
+                _injector.Inject(Directory.GetCurrentDirectory() + "\\cdlib.dll");
+            }
+            else
+            {
+                _injector.Inject(Directory.GetCurrentDirectory() + "\\cdlib64.dll", true);
+            }
+            _injector.Invoke("ChangeRemoteDirectory", path);
+            _injector.Free();
+        }
         #endregion
         #region getters / setters
         public Process Process

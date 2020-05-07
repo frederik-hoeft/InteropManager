@@ -15,17 +15,23 @@ namespace InteropMgr
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool CloseHandle(IntPtr hObject);
 
-        [DllImport("kernel32.dll")]
-        public static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, out IntPtr lpThreadId);
+
+        [DllImport("Psapi.dll", SetLastError = true)]
+        public static extern bool EnumProcessModules(IntPtr hProcess, IntPtr[] lphModule, uint cb, out uint lpcbNeeded);
 
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         public static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string lpszClass, string lpszWindow);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool FreeLibrary(IntPtr hLibModule);
 
         [DllImport("kernel32.dll")]
         public static extern uint GetCurrentThreadId();
 
         [DllImport("kernel32.dll")]
-        public static extern bool GetExitCodeThread(IntPtr hThread, out uint lpExitCode);
+        public static extern bool GetExitCodeThread(IntPtr hThread, out IntPtr lpExitCode);
 
         [DllImport("user32.dll")]
         public static extern IntPtr GetForegroundWindow();
@@ -36,11 +42,17 @@ namespace InteropMgr
         [DllImport("user32.dll")]
         public static extern IntPtr GetMessageExtraInfo();
 
+        [DllImport("Psapi.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern uint GetModuleBaseNameA(IntPtr hProcess, IntPtr hModule, byte[] lpBaseName, uint nSize);
+
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         public static extern IntPtr GetModuleHandle(string lpModuleName);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         public static extern IntPtr GetModuleHandleA(string lpModuleName);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool GetModuleHandleExA(uint dwFlags, IntPtr lpModuleName, out IntPtr phModule);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Ansi, ExactSpelling = true, SetLastError = true)]
         public static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
@@ -85,6 +97,9 @@ namespace InteropMgr
 
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool WriteProcessMemory(uint hProcess, long lpBaseAddress, byte[] lpBuffer, uint dwSize, ref int lpNumberOfBytesWritten);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool WriteProcessMemory(uint hProcess, int lpBaseAddress, byte[] lpBuffer, uint dwSize, ref int lpNumberOfBytesWritten);
 
         [DllImport("user32.dll")]
         public static extern byte VkKeyScan(char ch);
