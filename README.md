@@ -1,5 +1,5 @@
 # InteropManager
-(WIP) A C# library for low level process interoperability like reading / writing process memory, injecting dlls, etc...
+(PAUSED) A C# library for low level process interoperability like reading / writing process memory, injecting dlls, etc...
 
 ---
 ##### Disclaimer
